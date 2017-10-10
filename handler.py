@@ -5,6 +5,8 @@ import boto3
 from time import perf_counter as pc
 from urllib.parse import urlparse
 
+import re
+
 
 class Config:
     """Lambda function runtime configuration"""
@@ -18,6 +20,7 @@ class Config:
     REPORT_AS_CW_METRICS = 'REPORT_AS_CW_METRICS'
     CW_METRICS_NAMESPACE = 'CW_METRICS_NAMESPACE'
     CW_METRICS_METRIC_NAME = 'CW_METRICS_METRIC_NAME'
+    BODY_REGEX_MATCH = 'BODY_REGEX_MATCH'
     
     def __init__(self, event):
         self.event = event
@@ -29,7 +32,8 @@ class Config:
             self.REPORT_RESPONSE_BODY: '0',
             self.REPORT_AS_CW_METRICS: '1',
             self.CW_METRICS_NAMESPACE: 'HttpCheck',
-            self.HEADERS: ''
+            self.HEADERS: '',
+            self.BODY_REGEX_MATCH: None
         }
     
     def __get_property(self, property_name):
@@ -57,7 +61,7 @@ class Config:
         return payload
     
     @property
-    def timeoutms(self):
+    def timeout(self):
         return self.__get_property(self.TIMEOUT)
     
     @property
@@ -76,41 +80,46 @@ class Config:
                 print(f"Could not decode headers: {headers}")
     
     @property
+    def bodyregexmatch(self):
+        return self.__get_property(self.BODY_REGEX_MATCH)
+    
+    @property
     def cwoptions(self):
         return {
             'enabled': self.__get_property(self.REPORT_AS_CW_METRICS),
-            'namespace': self.__get_property(self.CW_METRICS_NAMESPACE)
+            'namespace': self.__get_property(self.CW_METRICS_NAMESPACE),
         }
 
 
 class HttpCheck:
     """Execution of HTTP(s) request"""
     
-    def __init__(self, endpoint, timeout=120000, method='GET', payload=None, headers={}):
-        self.method = method
-        self.endpoint = endpoint
-        self.timeout = timeout
-        self.payload = payload
-        self.headers = headers
+    def __init__(self, config):
+        self.method = config.method
+        self.endpoint = config.endpoint
+        self.timeout = config.timeout
+        self.payload = config.payload
+        self.headers = config.headers
+        self.bodyregexmatch = config.bodyregexmatch
     
     def execute(self):
         url = urlparse(self.endpoint)
         location = url.netloc
         if url.scheme == 'http':
             request = http.client.HTTPConnection(location, timeout=int(self.timeout))
-            
+        
         if url.scheme == 'https':
             request = http.client.HTTPSConnection(location, timeout=int(self.timeout))
-
+        
         if 'HTTP_DEBUG' in os.environ and os.environ['HTTP_DEBUG'] == '1':
             request.set_debuglevel(1)
-
+        
         path = url.path
         if path == '':
             path = '/'
         if url.query is not None:
             path = path + "?" + url.query
-            
+        
         try:
             t0 = pc()
             
@@ -122,14 +131,22 @@ class HttpCheck:
             # stop the stopwatch
             t1 = pc()
             
-            # return structure with data
-            return {
+            response_body = str(response_data.read().decode())
+            result = {
                 'Reason': response_data.reason,
-                'ResponseBody': str(response_data.read().decode()),
+                'ResponseBody': response_body,
                 'StatusCode': response_data.status,
                 'TimeTaken': int((t1 - t0) * 1000),
                 'Available': '1'
             }
+            
+            if self.bodyregexmatch is not None:
+                regex = re.compile(self.bodyregexmatch)
+                value = 1 if regex.match(response_body) else 0
+                result['ResponseBodyRegexMatch'] = value
+            
+            # return structure with data
+            return result
         except Exception as e:
             print(f"Failed to connect to {self.endpoint}\n{e}")
             return {'Available': 0, 'Reason': str(e)}
@@ -171,6 +188,16 @@ class ResultReporter:
                         'Unit': 'None',
                         'Value': int(result['StatusCode'])
                     })
+                    if 'ResponseBodyRegexMatch' in result:
+                        metric_data.append({
+                            'MetricName': 'ResponseBodyRegexMatch',
+                            'Dimensions': [
+                                {'Name': 'Endpoint', 'Value': self.endpoint}
+                            ],
+                            'Unit': 'None',
+                            'Value': int(result['ResponseBodyRegexMatch'])
+                        })
+                
                 result = cloudwatch.put_metric_data(
                     MetricData=metric_data,
                     Namespace=self.options['namespace']
@@ -184,22 +211,16 @@ def http_check(event, context):
     """Lambda function handler"""
     
     config = Config(event)
-    http_check = HttpCheck(
-        config.endpoint,
-        config.timeoutms,
-        config.method,
-        config.payload,
-        config.headers
-    )
+    http_check = HttpCheck(config)
     
     result = http_check.execute()
+    
+    # report results
+    ResultReporter(config, result).report(result)
     
     # Remove body if not required
     if (config.reportbody != '1') and ('ResponseBody' in result):
         del result['ResponseBody']
-    
-    # report results
-    ResultReporter(config, result).report(result)
     
     result_json = json.dumps(result, indent=4)
     # log results

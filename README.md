@@ -30,6 +30,9 @@ custom metrics, 0 otherwise, defaults to 1
 `CW_METRICS_NAMESPACE` - if CW custom metrics are being reported, this will determine
 their namespace, defaults to 'HttpCheck'
 
+`BODY_REGEX_MATCH` - if CW custom metrics are being reported, this will enable `ResponseBodyRegexMatch`
+metric to be published as well, with value determined by success of matching response body against
+regular expression contained within this option
 
 
 ## Outputs
@@ -47,6 +50,26 @@ is 2 minutes for http requests.
 
 `ResponseBody` - Optional, by default this won't be reported
 
+
+## Dependencies
+
+Lambda function is having no external dependencies by design, so no additional packaging steps are required
+for deploying it, such as doing `pip install [libname]`
+
+## CloudWatch Metrics
+
+In order to get some metrics which you can alert on, `REPORT_AS_CW_METRICS` and `CW_METRICS_NAMESPACE` environment
+variables are used. Following metrics will be reported
+
+- `Available` - 0 or 1, whether response was received in timely manner, indicating problems with network, DNS lookup or
+server timeout
+
+- `TimeTaken` - Time taken to fetch response, reported in milliseconds
+
+- `StatusCode` - HTTP Status code received from server
+
+- `ResponseBodyRegexMatch` - **optional** this will report 1 or 0 if `BODY_REGEX_MATCH` option is specified. 1 is reported
+ if response body matches regex provided, or 0 otherwise. 
 
 ## Deployment
 
@@ -76,7 +99,7 @@ sls invoke local  -f httpcheck
 Optionally, for complicated example take a look at `test/ipify.json` file
 
 ```
-$ sls invoke local  -f httpcheck -p test/ipifytimeout.json 
+$ sls invoke local  -f httpcheck -p test/ipify.json 
 Failed to connect to https://api.ipify.org?format=json
 <urlopen error _ssl.c:732: The handshake operation timed out>
 Failed to publish metrics to CloudWatch:'TimeTaken'
