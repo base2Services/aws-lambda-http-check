@@ -4,6 +4,7 @@ import http.client
 import boto3
 from time import perf_counter as pc
 from urllib.parse import urlparse
+import ssl
 
 import re
 
@@ -40,7 +41,7 @@ class Config:
         if property_name in self.event:
             return self.event[property_name]
         if property_name in os.environ:
-            return os.env[property_name]
+            return os.environ[property_name]
         if property_name in self.defaults:
             return self.defaults[property_name]
         return None
@@ -109,7 +110,7 @@ class HttpCheck:
             request = http.client.HTTPConnection(location, timeout=int(self.timeout))
         
         if url.scheme == 'https':
-            request = http.client.HTTPSConnection(location, timeout=int(self.timeout))
+            request = http.client.HTTPSConnection(location, timeout=int(self.timeout), context=ssl._create_unverified_context())
         
         if 'HTTP_DEBUG' in os.environ and os.environ['HTTP_DEBUG'] == '1':
             request.set_debuglevel(1)
