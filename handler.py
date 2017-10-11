@@ -22,6 +22,7 @@ class Config:
     CW_METRICS_NAMESPACE = 'CW_METRICS_NAMESPACE'
     CW_METRICS_METRIC_NAME = 'CW_METRICS_METRIC_NAME'
     BODY_REGEX_MATCH = 'BODY_REGEX_MATCH'
+    STATUS_CODE_MATCH = 'STATUS_CODE_MATCH'
     
     def __init__(self, event):
         self.event = event
@@ -34,7 +35,8 @@ class Config:
             self.REPORT_AS_CW_METRICS: '1',
             self.CW_METRICS_NAMESPACE: 'HttpCheck',
             self.HEADERS: '',
-            self.BODY_REGEX_MATCH: None
+            self.BODY_REGEX_MATCH: None,
+            self.STATUS_CODE_MATCH: None
         }
     
     def __get_property(self, property_name):
@@ -83,6 +85,10 @@ class Config:
     @property
     def bodyregexmatch(self):
         return self.__get_property(self.BODY_REGEX_MATCH)
+
+    @property
+    def statuscodematch(self):
+        return self.__get_property(self.STATUS_CODE_MATCH)
     
     @property
     def cwoptions(self):
@@ -102,6 +108,7 @@ class HttpCheck:
         self.payload = config.payload
         self.headers = config.headers
         self.bodyregexmatch = config.bodyregexmatch
+        self.statuscodematch = config.statuscodematch
     
     def execute(self):
         url = urlparse(self.endpoint)
@@ -145,6 +152,9 @@ class HttpCheck:
                 regex = re.compile(self.bodyregexmatch)
                 value = 1 if regex.match(response_body) else 0
                 result['ResponseBodyRegexMatch'] = value
+
+            if self.statuscodematch is not None:
+                result['StatusCodeMatch'] = int(int(response_data.status) == int(self.statuscodematch))
             
             # return structure with data
             return result
@@ -189,15 +199,16 @@ class ResultReporter:
                         'Unit': 'None',
                         'Value': int(result['StatusCode'])
                     })
-                    if 'ResponseBodyRegexMatch' in result:
-                        metric_data.append({
-                            'MetricName': 'ResponseBodyRegexMatch',
-                            'Dimensions': [
-                                {'Name': 'Endpoint', 'Value': self.endpoint}
-                            ],
-                            'Unit': 'None',
-                            'Value': int(result['ResponseBodyRegexMatch'])
-                        })
+                    for additional_metric in ['ResponseBodyRegexMatch', 'StatusCodeMatch']:
+                        if additional_metric in result:
+                            metric_data.append({
+                                'MetricName': additional_metric,
+                                'Dimensions': [
+                                    {'Name': 'Endpoint', 'Value': self.endpoint}
+                                ],
+                                'Unit': 'None',
+                                'Value': int(result[additional_metric])
+                            })
                 
                 result = cloudwatch.put_metric_data(
                     MetricData=metric_data,

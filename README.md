@@ -34,6 +34,8 @@ their namespace, defaults to 'HttpCheck'
 metric to be published as well, with value determined by success of matching response body against
 regular expression contained within this option
 
+`STATUS_CODE_MATCH` - report whether http status code is equal to given status code or not. If this option
+is not present, it won't be reported upon. Defaults to empty
 
 ## Outputs
 
@@ -50,6 +52,9 @@ is 2 minutes for http requests.
 
 `ResponseBody` - Optional, by default this won't be reported
 
+`ResponseBodyRegexMatch` - Optional, if `BODY_REGEX_MATCH` option is provided
+
+`StatusCodeMatch` - Optional, if `STATUS_CODE_MATCH` options is provided
 
 ## Dependencies
 
@@ -70,6 +75,9 @@ server timeout
 
 - `ResponseBodyRegexMatch` - **optional** this will report 1 or 0 if `BODY_REGEX_MATCH` option is specified. 1 is reported
  if response body matches regex provided, or 0 otherwise. 
+
+- `StatusCodeMatch` - **optional*& this will report 1 or 0 if `STATUS_CODE_MATCH` options is specified. 1 is reported
+ if response status code matches code provided, or 0 otherwise
 
 ## Deployment
 
