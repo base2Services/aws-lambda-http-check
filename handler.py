@@ -150,7 +150,7 @@ class HttpCheck:
             
             if self.bodyregexmatch is not None:
                 regex = re.compile(self.bodyregexmatch)
-                value = 1 if regex.match(response_body) else 0
+                value = 1 if regex.search(response_body) else 0
                 result['ResponseBodyRegexMatch'] = value
 
             if self.statuscodematch is not None:
