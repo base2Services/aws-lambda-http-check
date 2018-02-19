@@ -37,6 +37,8 @@ regular expression contained within this option
 `STATUS_CODE_MATCH` - report whether http status code is equal to given status code or not. If this option
 is not present, it won't be reported upon. Defaults to empty
 
+`FAIL_ON_STATUS_CODE_MISMATCH` - if checking for status code match treat mismatch as failure, ie report `Available: 0`
+
 ## Outputs
 
 By default, following properties will be rendered in output Json
@@ -130,4 +132,4 @@ variable to '1'. This can't be controlled through event payload.
 ## Schedule execution 
 
 Pull requests are welcome to serverless project to deploy CloudWatch rules in order
-to schedule execution of Http Checking Lambda function. 
+to schedule execution of Http Checking Lambda function.
