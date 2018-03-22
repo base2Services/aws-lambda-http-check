@@ -1,0 +1,11 @@
+{
+  "ENDPOINT":"http://api.ipify.org?format=json",
+  "METHOD":"GET",
+  "TIMEOUT_MS":5,
+  "REPORT_RESPONSE_BODY":"1",
+  "REPORT_AS_CW_METRICS":"1",
+  "CW_METRICS_NAMESPACE":"HttpCheckTestNamespace1",
+  "BODY_REGEX_MATCH":"\\{\"ip\":(.*)\\}",
+  "STATUS_CODE_MATCH": 201,
+  "FAIL_ON_STATUS_CODE_MISMATCH": "1"
+}
