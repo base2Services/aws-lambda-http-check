@@ -228,7 +228,7 @@ class ResultReporter:
                 print(f"Failed to publish metrics to CloudWatch:{e}")
 
 
-def http_check(event, context):
+def main(event, context):
     """Lambda function handler"""
 
     config = Config(event)
