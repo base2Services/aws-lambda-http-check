@@ -8,7 +8,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: http-check
-      Handler: handler.run_check
+      Handler: handler.http_check
       Runtime: python3.6
       CodeUri: handler.py
       Timeout: 300
