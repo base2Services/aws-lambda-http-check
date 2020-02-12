@@ -20,9 +20,9 @@ deploy:
 	
 lambda-test:
 	aws lambda invoke --function-name ${CHECK} --payload file://./test/ipify_statuscode_mistmatch.json lambda-test-1.json --log-type Tail --query 'LogResult' --output text | base64 -d
-	aws lambda invoke --function-name ${CHECK} --payload file://./test/ipify.json lambda-test-1.json --log-type Tail --query 'LogResult' --output text | base64 -d
-	aws lambda invoke --function-name ${CHECK} --payload file://./test/ipifyRegexFail.json lambda-test-1.json --log-type Tail --query 'LogResult' --output text | base64 -d
-	aws lambda invoke --function-name ${CHECK} --payload file://./test/postRequest.json lambda-test-1.json --log-type Tail --query 'LogResult' --output text | base64 -d
+	aws lambda invoke --function-name ${CHECK} --payload file://./test/ipify.json lambda-test-2.json --log-type Tail --query 'LogResult' --output text | base64 -d
+	aws lambda invoke --function-name ${CHECK} --payload file://./test/ipifyRegexFail.json lambda-test-3.json --log-type Tail --query 'LogResult' --output text | base64 -d
+	aws lambda invoke --function-name ${CHECK} --payload file://./test/postRequest.json lambda-test-4.json --log-type Tail --query 'LogResult' --output text | base64 -d
 	if grep -q "errorMessage" lambda-test-*.json; then echo "\nLambda tests failed"; exit 1; else echo "\nLambda tests passed";	fi
 
 destroy:
