@@ -20,3 +20,7 @@ var/
 .serverless
 
 __pycache__
+
+packaged.yaml
+
+lambda-test-*.json

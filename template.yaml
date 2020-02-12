@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Http Check
+
+Resources:
+  
+  Check:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: http-check
+      Handler: handler.run_check
+      Runtime: python3.6
+      CodeUri: handler.py
+      Timeout: 300
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:PutLogEvents
+                - logs:DescribeLogStreams
+                - logs:DescribeLogGroups
+              Resource:
+                - '*'
+            - Effect: Allow
+              Action:
+                - cloudwatch:PutMetricData
+              Resource: 
+                - '*'
