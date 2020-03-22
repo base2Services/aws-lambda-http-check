@@ -9,8 +9,7 @@ Resources:
     Properties:
       FunctionName: http-check
       Handler: handler.http_check
-      Runtime: python3.6
-      CodeUri: handler.py
+      Runtime: python3.7
       Timeout: 300
       Policies:
         - Version: "2012-10-17"
