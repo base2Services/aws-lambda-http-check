@@ -21,6 +21,8 @@ will take priority over environment variables
 `HEADERS` - list of headers to send to target server, defaults to empty list.
 Headers should be specified in
 
+`COMPRESSED` - Request a compressed response using gzip un decompresses the response to text
+
 `REPORT_RESPONSE_BODY` - set to 1 if you wish to report on response body, 0
 otherwise, 0 otherwise, defaults to 0
 
@@ -58,10 +60,15 @@ is 2 minutes for http requests.
 
 `StatusCodeMatch` - Optional, if `STATUS_CODE_MATCH` options is provided
 
+## Images
+
+The http check function can work with images. It downloads the image and stores the response a md5 hash. This allows the ability to set `BODY_REGEX_MATCH` with the expected md5 value.
+
 ## Dependencies
 
 Lambda function is having no external dependencies by design, so no additional packaging steps are required
-for deploying it, such as doing `pip install [libname]`
+for deploying it, such as doing `pip install [libname]`. The requirements.txt file is there a placeholder for
+AWS SAM testing.
 
 ## CloudWatch Metrics
 
@@ -78,12 +85,15 @@ server timeout
 - `ResponseBodyRegexMatch` - **optional** this will report 1 or 0 if `BODY_REGEX_MATCH` option is specified. 1 is reported
  if response body matches regex provided, or 0 otherwise. 
 
-- `StatusCodeMatch` - **optional*& this will report 1 or 0 if `STATUS_CODE_MATCH` options is specified. 1 is reported
+- `StatusCodeMatch` - **optional** this will report 1 or 0 if `STATUS_CODE_MATCH` options is specified. 1 is reported
  if response status code matches code provided, or 0 otherwise
 
 ## Deployment
 
-You can either deploy Lambda manually, or through [serverless](serverless.com) project.
+You can either deploy Lambda manually, through [serverless](serverless.com) project or using [AWS SAM](https://aws.amazon.com/serverless/sam/).
+
+### Serverless
+
 If serverless is being chosen as method of deployments use command below, while
 making sure that you have setup proper access keys. For more information [read here](https://serverless.com/framework/docs/providers/aws/guide/workflow/)
 
@@ -98,7 +108,19 @@ sls deploy
 If you are setting up your Lambda function by hand, make sure it has proper IAM
 permissions to push Cloud Watch metrics data, and to write to CloudWatch logs
 
+### AWS SAM
+
+Make sure you have set up your AWS credentials in your environment and an available s3 bucket in the same region.
+
+```sh
+sam package --template-file template.yaml --output-template-file packaged.yaml --s3-bucket ${BUCKET}
+sam deploy --template-file packaged.yaml --stack-name http-check --capabilities CAPABILITY_IAM
+```
+
 ## Testing
+
+
+### Serverless
 
 To test function locally with simple Google url (default), run following
 
@@ -122,6 +144,20 @@ Result of checking https://api.ipify.org?format=json
     "Available": 0,
     "Reason": "<urlopen error _ssl.c:732: The handshake operation timed out>"
 }
+```
+
+### AWS SAM
+
+build the code change
+
+```
+sam build
+```
+
+execute the test
+
+```sh
+sam local invoke Check --event test/ipify.json 
 ```
 
 ## Debugging
