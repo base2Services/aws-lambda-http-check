@@ -1,0 +1,9 @@
+{
+  "ENDPOINT":"https://jsonplaceholder.typicode.com/posts/1",
+  "METHOD":"GET",
+  "TIMEOUT_MS":5,
+  "COMPRESSED":"1",
+  "REPORT_RESPONSE_BODY":"0",
+  "REPORT_AS_CW_METRICS":"0",
+  "STATUS_CODE_MATCH": 200
+}

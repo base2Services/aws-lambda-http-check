@@ -5,9 +5,9 @@ import boto3
 from time import perf_counter as pc
 from urllib.parse import urlparse
 import ssl
-
+from io import StringIO
+import gzip
 import re
-
 
 class Config:
     """Lambda function runtime configuration"""
@@ -17,6 +17,7 @@ class Config:
     PAYLOAD = 'PAYLOAD'
     TIMEOUT = 'TIMEOUT'
     HEADERS = 'HEADERS'
+    COMPRESSED = 'COMPRESSED'
     REPORT_RESPONSE_BODY = 'REPORT_RESPONSE_BODY'
     REPORT_AS_CW_METRICS = 'REPORT_AS_CW_METRICS'
     CW_METRICS_NAMESPACE = 'CW_METRICS_NAMESPACE'
@@ -36,6 +37,7 @@ class Config:
             self.REPORT_AS_CW_METRICS: '1',
             self.CW_METRICS_NAMESPACE: 'HttpCheck',
             self.HEADERS: '',
+            self.COMPRESSED: '0',
             self.BODY_REGEX_MATCH: None,
             self.STATUS_CODE_MATCH: None,
             self.FAIL_ON_STATUS_CODE_MISMATCH: None
@@ -102,6 +104,10 @@ class Config:
             'enabled': self.__get_property(self.REPORT_AS_CW_METRICS),
             'namespace': self.__get_property(self.CW_METRICS_NAMESPACE),
         }
+    
+    @property
+    def compressed(self):
+        return self.__get_property(self.COMPRESSED)
 
 
 class HttpCheck:
@@ -113,6 +119,7 @@ class HttpCheck:
         self.timeout = config.timeout
         self.payload = config.payload
         self.headers = config.headers
+        self.compressed = config.compressed
         self.bodyregexmatch = config.bodyregexmatch
         self.statuscodematch = config.statuscodematch
         self.fail_on_statuscode_mismatch = config.fail_on_statuscode_mismatch
@@ -134,10 +141,13 @@ class HttpCheck:
             path = '/'
         if url.query is not None:
             path = path + "?" + url.query
-
+        
+        if self.compressed == '1':
+            self.headers['Accept-Encoding'] = 'deflate, gzip'
+        
         try:
             t0 = pc()
-
+            
             # perform request
             request.request(self.method, path, self.payload, self.headers)
             # read response
@@ -145,8 +155,13 @@ class HttpCheck:
 
             # stop the stopwatch
             t1 = pc()
-
-            response_body = str(response_data.read().decode())
+            
+            if response_data.getheader('Content-Encoding') == 'gzip':
+                data = gzip.decompress(response_data.read())
+                response_body = str(data,'utf-8')
+            else:
+                response_body = str(response_data.read().decode())
+            
             result = {
                 'Reason': response_data.reason,
                 'ResponseBody': response_body,
