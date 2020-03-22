@@ -8,6 +8,7 @@ import ssl
 from io import StringIO
 import gzip
 import re
+import hashlib
 
 class Config:
     """Lambda function runtime configuration"""
@@ -156,9 +157,14 @@ class HttpCheck:
             # stop the stopwatch
             t1 = pc()
             
+            print(f"Headers: {response_data.getheaders()}")
+            
             if response_data.getheader('Content-Encoding') == 'gzip':
                 data = gzip.decompress(response_data.read())
                 response_body = str(data,'utf-8')
+            elif response_data.getheader('Content-Type').startswith('image/'):
+                response_body = hashlib.md5(response_data.read()).hexdigest()
+                print(response_body)
             else:
                 response_body = str(response_data.read().decode())
             

@@ -1,0 +1,9 @@
+{
+  "ENDPOINT":"https://base2services.com/images/base2.png",
+  "METHOD":"GET",
+  "BODY_REGEX_MATCH":"98ebc6e64a05e3186e9907f4d50e05b8",
+  "TIMEOUT_MS":5,
+  "REPORT_RESPONSE_BODY":"1",
+  "REPORT_AS_CW_METRICS":"0",
+  "STATUS_CODE_MATCH": 200
+}
