@@ -24,3 +24,4 @@ __pycache__
 packaged.yaml
 
 lambda-test-*.json
+/venv/
