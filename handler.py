@@ -162,7 +162,7 @@ class HttpCheck:
             if response_data.getheader('Content-Encoding') == 'gzip':
                 data = gzip.decompress(response_data.read())
                 response_body = str(data,'utf-8')
-            elif response_data.getheader('Content-Type').startswith('image/'):
+            elif response_data.getheader('Content-Type') and response_data.getheader('Content-Type').startswith('image/'):
                 response_body = hashlib.md5(response_data.read()).hexdigest()
                 print(response_body)
             else:
