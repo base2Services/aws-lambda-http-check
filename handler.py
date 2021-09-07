@@ -166,7 +166,7 @@ class HttpCheck:
                 response_body = hashlib.md5(response_data.read()).hexdigest()
                 print(response_body)
             else:
-                response_body = str(response_data.read().decode())
+                response_body = str(response_data.read().decode('utf-8','replace'))
             
             result = {
                 'Reason': response_data.reason,
