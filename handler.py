@@ -80,20 +80,23 @@ class Config:
 
     @property
     def headers(self):
+        header_dict = {}
         headers = self.__get_property(self.HEADERS)
         user_agent = self.__get_property(self.USER_AGENT)
-        if user_agent != '' and headers != '':
-            headers = f"{headers}%User-Agent={user_agent}"
-        elif user_agent != '' and headers == '':
-            headers = f"User-Agent={user_agent}"
+        if user_agent != '':
+            header_dict['User-Agent'] = user_agent
         
         if headers == '':
-            return {}
+            return header_dict
         else:
             try:
-                return dict(u.split("=") for u in headers.split('%'))
+                for u in headers.split(' '):
+                    key = u.split("=")[0]
+                    val = u.split("=")[1]
+                    header_dict[key] = val
+                return header_dict
             except:
-                print(f"Could not decode headers: {headers}")
+                print(f"Could not decode headers: {header_dict}")
 
     @property
     def bodyregexmatch(self):
