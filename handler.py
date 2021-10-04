@@ -18,6 +18,7 @@ class Config:
     PAYLOAD = 'PAYLOAD'
     TIMEOUT = 'TIMEOUT'
     HEADERS = 'HEADERS'
+    USER_AGENT = 'USER_AGENT'
     COMPRESSED = 'COMPRESSED'
     REPORT_RESPONSE_BODY = 'REPORT_RESPONSE_BODY'
     REPORT_AS_CW_METRICS = 'REPORT_AS_CW_METRICS'
@@ -37,6 +38,7 @@ class Config:
             self.REPORT_RESPONSE_BODY: '0',
             self.REPORT_AS_CW_METRICS: '1',
             self.CW_METRICS_NAMESPACE: 'HttpCheck',
+            self.USER_AGENT: '',
             self.HEADERS: '',
             self.COMPRESSED: '0',
             self.BODY_REGEX_MATCH: None,
@@ -78,14 +80,23 @@ class Config:
 
     @property
     def headers(self):
+        header_dict = {}
         headers = self.__get_property(self.HEADERS)
+        user_agent = self.__get_property(self.USER_AGENT)
+        if user_agent != '':
+            header_dict['User-Agent'] = user_agent
+        
         if headers == '':
-            return {}
+            return header_dict
         else:
             try:
-                return dict(u.split("=") for u in headers.split(' '))
+                for u in headers.split(' '):
+                    key = u.split("=")[0]
+                    val = u.split("=")[1]
+                    header_dict[key] = val
+                return header_dict
             except:
-                print(f"Could not decode headers: {headers}")
+                print(f"Could not decode headers: {header_dict}")
 
     @property
     def bodyregexmatch(self):
@@ -156,7 +167,7 @@ class HttpCheck:
 
             # stop the stopwatch
             t1 = pc()
-            
+            print(f"Request headers: {self.headers}")
             print(f"Headers: {response_data.getheaders()}")
             
             if response_data.getheader('Content-Encoding') == 'gzip':

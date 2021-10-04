@@ -18,8 +18,9 @@ will take priority over environment variables
 
 `TIMEOUT` - timeout to use for http requests, defaults to 120s
 
-`HEADERS` - list of headers to send to target server, defaults to empty list.
-Headers should be specified in
+`HEADERS` - list of _percentage sign (%)_ separated headers to send to target server, defaults to empty list.
+
+`USER_AGENT` - If specified, will be added to the HEADERS. An example is: `Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:15.0) Gecko/20100101 Base2/Lambda`
 
 `REPORT_RESPONSE_BODY` - set to 1 if you wish to report on response body, 0
 otherwise, 0 otherwise, defaults to 0
