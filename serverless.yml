@@ -8,7 +8,7 @@ service: aws-python3 # NOTE: update this with your service name
 
 provider:
   name: aws
-  runtime: python3.8
+  runtime: python3.11
 
 # you can overwrite defaults here
 #  stage: dev
