@@ -92,7 +92,7 @@ class Config:
             try:
                 for u in headers.split(' '):
                     key = u.split("=")[0]
-                    val = u.split("=")[1]
+                    val = u.split("=")[1].replace('%20',' ')
                     header_dict[key] = val
                 return header_dict
             except:
