@@ -40,6 +40,48 @@ is not present, it won't be reported upon. Defaults to empty
 
 `FAIL_ON_STATUS_CODE_MISMATCH` - if checking for status code match treat mismatch as failure, ie report `Available: 0`
 
+## HMAC Signed Requests
+
+For endpoints that require HMAC authentication, the Lambda can dynamically compute and attach signed headers at request time. This supports replay-attack-resistant authentication schemes where each request requires a unique timestamp and nonce.
+
+When `HMAC_SECRET_SSM` is set, the following headers are added to the request:
+
+| Header | Description |
+|---|---|
+| `{prefix}-Signature` | HMAC-SHA256 hex digest of the canonical string |
+| `{prefix}-Key-Id` | Key identifier |
+| `{prefix}-Timestamp` | Unix epoch timestamp (seconds) |
+| `{prefix}-Nonce` | Random UUID hex (prevents replay attacks) |
+
+The canonical string signed is:
+
+```
+METHOD\nPATH\nTIMESTAMP\nNONCE\nQUERY\nBODY_HASH
+```
+
+Where `BODY_HASH` is the SHA-256 hex digest of the request body (empty string hash for GET requests).
+
+### HMAC Configuration
+
+`HMAC_SECRET_SSM` - SSM Parameter Store path to the HMAC secret (SecureString). When set, HMAC signing is enabled. The Lambda execution role must have `ssm:GetParameter` permission for this parameter.
+
+`HMAC_KEY_ID` - key identifier sent in the `{prefix}-Key-Id` header. Defaults to `default`.
+
+`HMAC_HEADER_PREFIX` - prefix used for all HMAC header names. Defaults to `X-Health`, producing headers `X-Health-Signature`, `X-Health-Key-Id`, `X-Health-Timestamp`, and `X-Health-Nonce`.
+
+### Example
+
+```json
+{
+  "ENDPOINT": "https://api.example.com/health",
+  "METHOD": "GET",
+  "STATUS_CODE_MATCH": 200,
+  "HMAC_SECRET_SSM": "/guardian/myapp/hmac-secret",
+  "HMAC_KEY_ID": "default",
+  "HMAC_HEADER_PREFIX": "X-Health"
+}
+```
+
 ## Outputs
 
 By default, following properties will be rendered in output Json
