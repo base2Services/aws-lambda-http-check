@@ -1,6 +1,9 @@
 import json
 import os
 import http.client
+import hmac
+import time
+import uuid
 import boto3
 from time import perf_counter as pc
 from urllib.parse import urlparse
@@ -27,6 +30,9 @@ class Config:
     BODY_REGEX_MATCH = 'BODY_REGEX_MATCH'
     STATUS_CODE_MATCH = 'STATUS_CODE_MATCH'
     FAIL_ON_STATUS_CODE_MISMATCH = 'FAIL_ON_STATUS_CODE_MISMATCH'
+    HMAC_SECRET_SSM = 'HMAC_SECRET_SSM'
+    HMAC_KEY_ID = 'HMAC_KEY_ID'
+    HMAC_HEADER_PREFIX = 'HMAC_HEADER_PREFIX'
 
     def __init__(self, event):
         self.event = event
@@ -43,7 +49,10 @@ class Config:
             self.COMPRESSED: '0',
             self.BODY_REGEX_MATCH: None,
             self.STATUS_CODE_MATCH: None,
-            self.FAIL_ON_STATUS_CODE_MISMATCH: None
+            self.FAIL_ON_STATUS_CODE_MISMATCH: None,
+            self.HMAC_SECRET_SSM: None,
+            self.HMAC_KEY_ID: 'default',
+            self.HMAC_HEADER_PREFIX: 'X-Health',
         }
 
     def __get_property(self, property_name):
@@ -97,6 +106,7 @@ class Config:
                 return header_dict
             except:
                 print(f"Could not decode headers: {header_dict}")
+                return header_dict
 
     @property
     def bodyregexmatch(self):
@@ -111,6 +121,18 @@ class Config:
         return self.__get_property(self.FAIL_ON_STATUS_CODE_MISMATCH)
 
     @property
+    def hmac_secret_ssm(self):
+        return self.__get_property(self.HMAC_SECRET_SSM)
+
+    @property
+    def hmac_key_id(self):
+        return self.__get_property(self.HMAC_KEY_ID)
+
+    @property
+    def hmac_header_prefix(self):
+        return self.__get_property(self.HMAC_HEADER_PREFIX)
+
+    @property
     def cwoptions(self):
         return {
             'enabled': self.__get_property(self.REPORT_AS_CW_METRICS),
@@ -120,6 +142,63 @@ class Config:
     @property
     def compressed(self):
         return self.__get_property(self.COMPRESSED)
+
+
+# Module-level SSM secret cache: {ssm_path: (secret_value, fetched_at)}
+# Cached values are reused across warm Lambda invocations for up to SSM_CACHE_TTL seconds.
+_SSM_CACHE = {}
+_SSM_CACHE_TTL = 600  # 10 minutes
+
+
+class HmacSigner:
+    """Generates HMAC signed request headers using a secret fetched from SSM Parameter Store.
+
+    The canonical string used for signing is:
+        METHOD\nPATH\nTIMESTAMP\nNONCE\nQUERY\nBODY_HASH
+
+    Four headers are added to the request:
+        {prefix}-Signature  — HMAC-SHA256 hex digest of the canonical string
+        {prefix}-Key-Id     — identifier for the signing key
+        {prefix}-Timestamp  — Unix epoch timestamp (seconds)
+        {prefix}-Nonce      — random UUID hex used to prevent replay attacks
+    """
+
+    def __init__(self, config):
+        self.secret_ssm = config.hmac_secret_ssm
+        self.key_id = config.hmac_key_id
+        self.header_prefix = config.hmac_header_prefix
+
+    def _fetch_secret(self):
+        now = time.time()
+        cached = _SSM_CACHE.get(self.secret_ssm)
+        if cached and (now - cached[1]) < _SSM_CACHE_TTL:
+            return cached[0]
+        ssm = boto3.client('ssm')
+        response = ssm.get_parameter(Name=self.secret_ssm, WithDecryption=True)
+        secret = response['Parameter']['Value']
+        _SSM_CACHE[self.secret_ssm] = (secret, now)
+        return secret
+
+    def sign(self, method, path, query, body):
+        secret = self._fetch_secret()
+        timestamp = str(int(time.time()))
+        nonce = uuid.uuid4().hex
+        body_hash = hashlib.sha256(body if body else b'').hexdigest()
+        canonical = '\n'.join([method, path, timestamp, nonce, query or '', body_hash])
+        signature = hmac.new(
+            secret.encode('utf-8'),
+            canonical.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        prefix = self.header_prefix
+        if 'HTTP_DEBUG' in os.environ and os.environ['HTTP_DEBUG'] == '1':
+            print(f"HMAC canonical string: {repr(canonical)}")
+        return {
+            f'{prefix}-Signature': signature,
+            f'{prefix}-Key-Id': self.key_id,
+            f'{prefix}-Timestamp': timestamp,
+            f'{prefix}-Nonce': nonce,
+        }
 
 
 class HttpCheck:
@@ -135,6 +214,7 @@ class HttpCheck:
         self.bodyregexmatch = config.bodyregexmatch
         self.statuscodematch = config.statuscodematch
         self.fail_on_statuscode_mismatch = config.fail_on_statuscode_mismatch
+        self.hmac_signer = HmacSigner(config) if config.hmac_secret_ssm else None
 
     def execute(self):
         url = urlparse(self.endpoint)
@@ -153,7 +233,16 @@ class HttpCheck:
             path = '/'
         if url.query is not None:
             path = path + "?" + url.query
-        
+
+        if self.hmac_signer:
+            hmac_headers = self.hmac_signer.sign(
+                self.method,
+                url.path if url.path else '/',
+                url.query or '',
+                self.payload,
+            )
+            self.headers.update(hmac_headers)
+
         if self.compressed == '1':
             self.headers['Accept-Encoding'] = 'deflate, gzip'
         
