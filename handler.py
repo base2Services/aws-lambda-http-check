@@ -106,6 +106,7 @@ class Config:
                 return header_dict
             except:
                 print(f"Could not decode headers: {header_dict}")
+                return header_dict
 
     @property
     def bodyregexmatch(self):
@@ -143,6 +144,12 @@ class Config:
         return self.__get_property(self.COMPRESSED)
 
 
+# Module-level SSM secret cache: {ssm_path: (secret_value, fetched_at)}
+# Cached values are reused across warm Lambda invocations for up to SSM_CACHE_TTL seconds.
+_SSM_CACHE = {}
+_SSM_CACHE_TTL = 600  # 10 minutes
+
+
 class HmacSigner:
     """Generates HMAC signed request headers using a secret fetched from SSM Parameter Store.
 
@@ -162,9 +169,15 @@ class HmacSigner:
         self.header_prefix = config.hmac_header_prefix
 
     def _fetch_secret(self):
+        now = time.time()
+        cached = _SSM_CACHE.get(self.secret_ssm)
+        if cached and (now - cached[1]) < _SSM_CACHE_TTL:
+            return cached[0]
         ssm = boto3.client('ssm')
         response = ssm.get_parameter(Name=self.secret_ssm, WithDecryption=True)
-        return response['Parameter']['Value']
+        secret = response['Parameter']['Value']
+        _SSM_CACHE[self.secret_ssm] = (secret, now)
+        return secret
 
     def sign(self, method, path, query, body):
         secret = self._fetch_secret()
@@ -178,7 +191,8 @@ class HmacSigner:
             hashlib.sha256
         ).hexdigest()
         prefix = self.header_prefix
-        print(f"HMAC canonical string: {repr(canonical)}")
+        if 'HTTP_DEBUG' in os.environ and os.environ['HTTP_DEBUG'] == '1':
+            print(f"HMAC canonical string: {repr(canonical)}")
         return {
             f'{prefix}-Signature': signature,
             f'{prefix}-Key-Id': self.key_id,
