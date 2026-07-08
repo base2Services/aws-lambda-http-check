@@ -1,3 +1,5 @@
+.PHONY: test build build-image deploy lambda-test destroy
+
 CHECK=http-check
 BUCKET=my-bucket
 STACKNAME=http-check
@@ -11,7 +13,7 @@ build:
 	zip "${COMMIT}.zip" "handler.py"
 
 test:
-	echo "no python unit tests yet"
+	python3 -m unittest discover -s tests -v
 	
 deploy:
 	sam package --region ${AWSREGION} --template-file template.yaml --output-template-file packaged.yaml --s3-bucket ${BUCKET}

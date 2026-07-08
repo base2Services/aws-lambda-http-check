@@ -13,6 +13,15 @@ import gzip
 import re
 import hashlib
 
+HEALTH_CONFIG_OVERRIDES_HEADER = 'X-Health-Config-Overrides'
+
+
+def _hash_override_header(raw_value):
+    """SHA-256 hex digest of the raw override header value (empty string when absent)."""
+    value = raw_value if isinstance(raw_value, str) else ''
+    return hashlib.sha256(value.encode('utf-8')).hexdigest()
+
+
 class Config:
     """Lambda function runtime configuration"""
 
@@ -154,13 +163,10 @@ class HmacSigner:
     """Generates HMAC signed request headers using a secret fetched from SSM Parameter Store.
 
     The canonical string used for signing is:
-        METHOD\nPATH\nTIMESTAMP\nNONCE\nQUERY\nBODY_HASH
+        METHOD\\nPATH\\nTIMESTAMP\\nNONCE\\nQUERY\\nBODY_HASH\\nOVERRIDE_HEADER_HASH
 
-    Four headers are added to the request:
-        {prefix}-Signature  — HMAC-SHA256 hex digest of the canonical string
-        {prefix}-Key-Id     — identifier for the signing key
-        {prefix}-Timestamp  — Unix epoch timestamp (seconds)
-        {prefix}-Nonce      — random UUID hex used to prevent replay attacks
+    OVERRIDE_HEADER_HASH is SHA-256 of the raw X-Health-Config-Overrides header value,
+    or SHA-256 of an empty string when that header is not sent.
     """
 
     def __init__(self, config):
@@ -179,12 +185,18 @@ class HmacSigner:
         _SSM_CACHE[self.secret_ssm] = (secret, now)
         return secret
 
-    def sign(self, method, path, query, body):
+    def sign(self, method, path, query, body, request_headers=None):
         secret = self._fetch_secret()
         timestamp = str(int(time.time()))
         nonce = uuid.uuid4().hex
         body_hash = hashlib.sha256(body if body else b'').hexdigest()
-        canonical = '\n'.join([method, path, timestamp, nonce, query or '', body_hash])
+        headers = request_headers or {}
+        headers_lc = {k.lower(): v for k, v in headers.items()}
+        override_raw = headers_lc.get(HEALTH_CONFIG_OVERRIDES_HEADER.lower())
+        override_hash = _hash_override_header(override_raw)
+        canonical = '\n'.join(
+            [method, path, timestamp, nonce, query or '', body_hash, override_hash]
+        )
         signature = hmac.new(
             secret.encode('utf-8'),
             canonical.encode('utf-8'),
@@ -240,6 +252,7 @@ class HttpCheck:
                 url.path if url.path else '/',
                 url.query or '',
                 self.payload,
+                request_headers=self.headers,
             )
             self.headers.update(hmac_headers)
 

@@ -56,10 +56,15 @@ When `HMAC_SECRET_SSM` is set, the following headers are added to the request:
 The canonical string signed is:
 
 ```
-METHOD\nPATH\nTIMESTAMP\nNONCE\nQUERY\nBODY_HASH
+METHOD\nPATH\nTIMESTAMP\nNONCE\nQUERY\nBODY_HASH\nOVERRIDE_HEADER_HASH
 ```
 
-Where `BODY_HASH` is the SHA-256 hex digest of the request body (empty string hash for GET requests).
+Where:
+
+- `BODY_HASH` is the SHA-256 hex digest of the request body (empty string hash for GET requests)
+- `OVERRIDE_HEADER_HASH` is the SHA-256 hex digest of the raw `X-Health-Config-Overrides` header value when sent, otherwise the SHA-256 digest of an empty string (`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`)
+
+Set `X-Health-Config-Overrides` via the `HEADERS` input when you need request-scoped health check overrides (note: `HEADERS` is space-delimited by this Lambda; minify the JSON or encode spaces as `%20`). The override value must be included in the signature.
 
 ### HMAC Configuration
 
@@ -76,9 +81,21 @@ Where `BODY_HASH` is the SHA-256 hex digest of the request body (empty string ha
   "ENDPOINT": "https://api.example.com/health",
   "METHOD": "GET",
   "STATUS_CODE_MATCH": 200,
-  "HMAC_SECRET_SSM": "/guardian/myapp/hmac-secret",
+  "HMAC_SECRET_SSM": "/myapp/prod/HEALTH_HMAC_SECRET",
   "HMAC_KEY_ID": "default",
   "HMAC_HEADER_PREFIX": "X-Health"
+}
+```
+
+With optional health check config overrides:
+
+```json
+{
+  "ENDPOINT": "https://api.example.com/health",
+  "METHOD": "GET",
+  "STATUS_CODE_MATCH": 200,
+  "HMAC_SECRET_SSM": "/myapp/prod/HEALTH_HMAC_SECRET",
+  "HEADERS": "X-Health-Config-Overrides={\"roles\":{\"my_service\":{\"probes\":[{\"id\":\"my-probe\",\"enabled\":false}]}}}"
 }
 ```
 
