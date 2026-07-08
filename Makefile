@@ -13,7 +13,7 @@ build:
 	zip "${COMMIT}.zip" "handler.py"
 
 test:
-	python -m unittest discover -s tests -v
+	python3 -m unittest discover -s tests -v
 	
 deploy:
 	sam package --region ${AWSREGION} --template-file template.yaml --output-template-file packaged.yaml --s3-bucket ${BUCKET}
