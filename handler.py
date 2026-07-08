@@ -190,10 +190,10 @@ class HmacSigner:
         timestamp = str(int(time.time()))
         nonce = uuid.uuid4().hex
         body_hash = hashlib.sha256(body if body else b'').hexdigest()
-headers = request_headers or {}
-headers_lc = {k.lower(): v for k, v in headers.items()}
-override_raw = headers_lc.get(HEALTH_CONFIG_OVERRIDES_HEADER.lower())
-override_hash = _hash_override_header(override_raw)
+        headers = request_headers or {}
+        headers_lc = {k.lower(): v for k, v in headers.items()}
+        override_raw = headers_lc.get(HEALTH_CONFIG_OVERRIDES_HEADER.lower())
+        override_hash = _hash_override_header(override_raw)
         canonical = '\n'.join(
             [method, path, timestamp, nonce, query or '', body_hash, override_hash]
         )

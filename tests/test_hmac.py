@@ -92,7 +92,36 @@ class TestHmacSigner(unittest.TestCase):
                     b'',
                     request_headers={
                         HEALTH_CONFIG_OVERRIDES_HEADER.lower(): SAMPLE_OVERRIDE_JSON
-                    }
+                    },
+                )
+
+        self.assertEqual(headers['X-Health-Signature'], expected)
+
+    @patch.object(HmacSigner, '_fetch_secret', return_value='test-secret')
+    def test_signs_with_mixed_case_override_header(self, _mock_secret):
+        body_hash = hashlib.sha256(b'').hexdigest()
+        override_hash = _hash_override_header(SAMPLE_OVERRIDE_JSON)
+        canonical = '\n'.join(
+            ['GET', '/health', '100', 'nonce', '', body_hash, override_hash]
+        )
+        expected = hmac.new(
+            b'test-secret',
+            canonical.encode('utf-8'),
+            hashlib.sha256,
+        ).hexdigest()
+
+        with patch('handler.time.time', return_value=100):
+            with patch('handler.uuid.uuid4') as mock_uuid:
+                mock_uuid.return_value.hex = 'nonce'
+                headers = self.signer.sign(
+                    'GET',
+                    '/health',
+                    '',
+                    b'',
+                    request_headers={
+                        'X-Health-Config-Overrides': SAMPLE_OVERRIDE_JSON
+                    },
+                )
 
         self.assertEqual(headers['X-Health-Signature'], expected)
 
