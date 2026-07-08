@@ -1,7 +1,11 @@
 import hashlib
 import hmac
+import sys
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+# handler imports boto3 at module load; HMAC unit tests mock SSM and never call it
+sys.modules.setdefault('boto3', MagicMock())
 
 from handler import (
     HEALTH_CONFIG_OVERRIDES_HEADER,
