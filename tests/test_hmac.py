@@ -91,9 +91,8 @@ class TestHmacSigner(unittest.TestCase):
                     '',
                     b'',
                     request_headers={
-                        HEALTH_CONFIG_OVERRIDES_HEADER: SAMPLE_OVERRIDE_JSON
-                    },
-                )
+                        HEALTH_CONFIG_OVERRIDES_HEADER.lower(): SAMPLE_OVERRIDE_JSON
+                    }
 
         self.assertEqual(headers['X-Health-Signature'], expected)
 

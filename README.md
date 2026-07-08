@@ -64,7 +64,7 @@ Where:
 - `BODY_HASH` is the SHA-256 hex digest of the request body (empty string hash for GET requests)
 - `OVERRIDE_HEADER_HASH` is the SHA-256 hex digest of the raw `X-Health-Config-Overrides` header value when sent, otherwise the SHA-256 digest of an empty string (`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`)
 
-Set `X-Health-Config-Overrides` via the `HEADERS` input when you need request-scoped health check overrides. The override value must be included in the signature.
+Set `X-Health-Config-Overrides` via the `HEADERS` input when you need request-scoped health check overrides (note: `HEADERS` is space-delimited by this Lambda; minify the JSON or encode spaces as `%20`). The override value must be included in the signature.
 
 ### HMAC Configuration
 
